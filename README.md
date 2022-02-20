@@ -48,3 +48,11 @@ Linux buildroot 5.12.3-bdong-dev #1 SMP Fri Feb 18 11:26:58 HKT 2022 riscv64 GNU
 # cd /
 # load_fw-shared rtthread.elf 1
  ```
+ ![image](https://github.com/magnate3/openamp_riscv/blob/main/pic/load.png)
+ 
+ ### after load in linux
+ ![image](https://github.com/magnate3/openamp_riscv/blob/main/pic/after_load_of_linux.png)
+ 
+  ### after load in shell
+ ![image](https://github.com/magnate3/openamp_riscv/blob/main/pic/after_load_of_shell.png)
+ 
