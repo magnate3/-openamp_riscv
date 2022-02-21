@@ -1,3 +1,8 @@
+ # changes
+ 
+ you can see 0001-Allow-stop-the-remote-hart.patch
+ 
+ 
  # compile opensbi and start qemu
  ```
  make PLATFORM=generic CROSS_COMPILE=riscv64-linux-gnu- -j64

@@ -1,0 +1,128 @@
+From ec5af96ef797f299329017b85deeffdc874d911c Mon Sep 17 00:00:00 2001
+From: Bamvor ZHANG <bamv2005@gmail.com>
+Date: Tue, 9 Mar 2021 19:25:17 +0800
+Subject: [PATCH] Allow stop the remote hart
+
+Signed-off-by: Bamvor ZHANG <bamv2005@gmail.com>
+---
+ include/sbi/sbi_ecall_interface.h |  1 +
+ include/sbi/sbi_hsm.h             |  2 ++
+ lib/sbi/sbi_console.c             |  3 +++
+ lib/sbi/sbi_ecall_hsm.c           |  3 +++
+ lib/sbi/sbi_hsm.c                 | 36 +++++++++++++++++++++++++++++++
+ 5 files changed, 45 insertions(+)
+
+diff --git a/include/sbi/sbi_ecall_interface.h b/include/sbi/sbi_ecall_interface.h
+index 002c6f9..96212e9 100644
+--- a/include/sbi/sbi_ecall_interface.h
++++ b/include/sbi/sbi_ecall_interface.h
+@@ -57,6 +57,7 @@
+ #define SBI_EXT_HSM_HART_START			0x0
+ #define SBI_EXT_HSM_HART_STOP			0x1
+ #define SBI_EXT_HSM_HART_GET_STATUS		0x2
++#define SBI_EXT_HSM_HART_STOP_REMOTE		0x1001
+ 
+ #define SBI_HSM_HART_STATUS_STARTED		0x0
+ #define SBI_HSM_HART_STATUS_STOPPED		0x1
+diff --git a/include/sbi/sbi_hsm.h b/include/sbi/sbi_hsm.h
+index 4823383..fa75ed4 100644
+--- a/include/sbi/sbi_hsm.h
++++ b/include/sbi/sbi_hsm.h
+@@ -29,6 +29,8 @@ int sbi_hsm_hart_start(struct sbi_scratch *scratch,
+ 		       const struct sbi_domain *dom,
+ 		       u32 hartid, ulong saddr, ulong smode, ulong priv);
+ int sbi_hsm_hart_stop(struct sbi_scratch *scratch, bool exitnow);
++int sbi_hsm_hart_stop_remote(struct sbi_scratch *scratch, u32 hartid);
++void sbi_hsm_hart_maybe_switch_to_stopped(void);
+ int sbi_hsm_hart_get_state(const struct sbi_domain *dom, u32 hartid);
+ int sbi_hsm_hart_state_to_status(int state);
+ int sbi_hsm_hart_started_mask(const struct sbi_domain *dom,
+diff --git a/lib/sbi/sbi_console.c b/lib/sbi/sbi_console.c
+index 7189b9b..bce3aa5 100644
+--- a/lib/sbi/sbi_console.c
++++ b/lib/sbi/sbi_console.c
+@@ -11,6 +11,7 @@
+ #include <sbi/sbi_console.h>
+ #include <sbi/sbi_platform.h>
+ #include <sbi/sbi_scratch.h>
++#include <sbi/sbi_hsm.h>	//for sbi_hsm_hart_maybe_switch_to_stopped
+ 
+ static const struct sbi_platform *console_plat = NULL;
+ static spinlock_t console_out_lock	       = SPIN_LOCK_INITIALIZER;
+@@ -26,6 +27,7 @@ bool sbi_isprintable(char c)
+ 
+ int sbi_getc(void)
+ {
++	sbi_hsm_hart_maybe_switch_to_stopped();
+ 	return sbi_platform_console_getc(console_plat);
+ }
+ 
+@@ -34,6 +36,7 @@ void sbi_putc(char ch)
+ 	if (ch == '\n')
+ 		sbi_platform_console_putc(console_plat, '\r');
+ 	sbi_platform_console_putc(console_plat, ch);
++	sbi_hsm_hart_maybe_switch_to_stopped();
+ }
+ 
+ void sbi_puts(const char *str)
+diff --git a/lib/sbi/sbi_ecall_hsm.c b/lib/sbi/sbi_ecall_hsm.c
+index df29d51..61af26a 100644
+--- a/lib/sbi/sbi_ecall_hsm.c
++++ b/lib/sbi/sbi_ecall_hsm.c
+@@ -41,6 +41,9 @@ static int sbi_ecall_hsm_handler(unsigned long extid, unsigned long funcid,
+ 						regs->a0);
+ 		ret = sbi_hsm_hart_state_to_status(hstate);
+ 		break;
++	case SBI_EXT_HSM_HART_STOP_REMOTE:
++		ret = sbi_hsm_hart_stop_remote(scratch, regs->a0);
++		break;
+ 	default:
+ 		ret = SBI_ENOTSUPP;
+ 	};
+diff --git a/lib/sbi/sbi_hsm.c b/lib/sbi/sbi_hsm.c
+index e1b2b2c..da17ffe 100644
+--- a/lib/sbi/sbi_hsm.c
++++ b/lib/sbi/sbi_hsm.c
+@@ -289,3 +289,39 @@ int sbi_hsm_hart_stop(struct sbi_scratch *scratch, bool exitnow)
+ 
+ 	return 0;
+ }
++
++int sbi_hsm_hart_stop_remote(struct sbi_scratch *scratch, u32 hartid)
++{
++	struct sbi_scratch *rscratch;
++	struct sbi_hsm_data *hdata;
++	u32 hstate;
++
++	rscratch = sbi_hartid_to_scratch(hartid);
++	if (!rscratch)
++		return SBI_EINVAL;
++
++	hdata = sbi_scratch_offset_ptr(rscratch, hart_data_offset);
++	hstate = atomic_xchg(&hdata->state, SBI_HART_STOPPING);
++	if (hstate != SBI_HART_STARTED && hstate != SBI_HART_STOPPING \
++			&& hstate != SBI_HART_STOPPED)
++		sbi_printf("WARNING: unexpect state: %d\n", hstate);
++
++	return 0;
++}
++
++void sbi_hsm_hart_maybe_switch_to_stopped(void)
++{
++	u32 hartid = current_hartid();
++	struct sbi_scratch *scratch;
++	struct sbi_hsm_data *hdata;
++	u32 hstate;
++
++	scratch = sbi_hartid_to_scratch(hartid);
++	if (!scratch)
++		return;
++
++	hdata = sbi_scratch_offset_ptr(scratch, hart_data_offset);
++	hstate = atomic_read(&hdata->state);
++	if (SBI_HART_STOPPING == hstate)
++		sbi_exit(scratch);
++}
+-- 
+2.17.1
+
