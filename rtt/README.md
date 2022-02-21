@@ -1,3 +1,13 @@
+
+# solve bugs
+## 1)bsp/qemu-riscv-virt64/driver/drv_uart.h
+
+```
+#define UART0_BASE            (0x10000000L)
+#define UART1_BASE            (0x10002000L)
+#define UART_BASE             UART0_BASE // not UART1_BASE
+```
+
 # compile
 ## opensbi
 [opensbi for qemu](https://github.com/magnate3/opensbi_qemu)
