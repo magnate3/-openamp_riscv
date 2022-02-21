@@ -1,3 +1,5 @@
+
+this project is originally from [rtthread-openamp-project](https://gitee.com/bamvor/rtthread-openamp-project)
 # qemu
 
 ##   qemu 5.2.0
@@ -50,7 +52,7 @@ Copyright (c) 2003-2021 Fabrice Bellard and the QEMU Project developers
  ##  run
  
  ```
- /qemu-system-riscv64 -M virt -m 512M -smp 2 -bios fw_jump.bin.bak  -kernel Image -append "root=/dev/vda  ro console=null"  -drive file=rootfs.ext2,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -netdev user,id=net0,hostfwd=::2222-:22 -device virtio-net-device,netdev=net0 -nographic   -dtb rtt-riscv64-qemu.dtb
+ ./qemu-system-riscv64 -M virt -m 512M -smp 2 -bios fw_jump.bin.bak  -kernel Image -append "root=/dev/vda  ro console=null"  -drive file=rootfs.ext2,format=raw,id=hd0 -device virtio-blk-device,drive=hd0 -netdev user,id=net0,hostfwd=::2222-:22 -device virtio-net-device,netdev=net0 -nographic   -dtb rtt-riscv64-qemu.dtb
  ```
  
  ## load
