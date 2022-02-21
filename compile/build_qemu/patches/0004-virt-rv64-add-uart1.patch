@@ -1,0 +1,83 @@
+From 424f778b140bfb0d688f77a479076f900d6d6a62 Mon Sep 17 00:00:00 2001
+From: Bamvor ZHANG <bamv2005@gmail.com>
+Date: Sat, 9 Oct 2021 11:56:07 +0800
+Subject: [PATCH 4/4] virt/rv64: add uart1
+
+Signed-off-by: Bamvor ZHANG <bamv2005@gmail.com>
+---
+ hw/riscv/virt.c         | 17 ++++++++++++++++-
+ include/hw/riscv/virt.h |  2 ++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/hw/riscv/virt.c b/hw/riscv/virt.c
+index 2d9202d239..39cd457e0f 100644
+--- a/hw/riscv/virt.c
++++ b/hw/riscv/virt.c
+@@ -62,6 +62,7 @@ static const struct MemmapEntry {
+     [VIRT_PLIC] =        {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) },
+     [VIRT_UART0] =       { 0x10000000,         0x100 },
+     [VIRT_VIRTIO] =      { 0x10001000,        0x1000 },
++    [VIRT_UART1] =       { 0x10002000,         0x100 },
+     [VIRT_FLASH] =       { 0x20000000,     0x4000000 },
+     [VIRT_PCIE_ECAM] =   { 0x30000000,    0x10000000 },
+     [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
+@@ -189,7 +190,7 @@ static void create_fdt(RISCVVirtState *s, const struct MemmapEntry *memmap,
+     uint64_t addr, size;
+     uint32_t *clint_cells, *plic_cells;
+     unsigned long clint_addr, plic_addr;
+-    unsigned long vring_addr, shm_addr, rproc_addr;
++    unsigned long shm_addr, rproc_addr;
+     uint32_t plic_phandle[MAX_NODES];
+     uint32_t cpu_phandle, intc_phandle, test_phandle;
+     uint32_t phandle = 1, plic_mmio_phandle = 1;
+@@ -457,6 +458,16 @@ static void create_fdt(RISCVVirtState *s, const struct MemmapEntry *memmap,
+     qemu_fdt_setprop_cell(fdt, name, "interrupt-parent", plic_mmio_phandle);
+     qemu_fdt_setprop_cell(fdt, name, "interrupts", UART0_IRQ);
+ 
++    name = g_strdup_printf("/soc/uart@%lx", (long)memmap[VIRT_UART1].base);
++    qemu_fdt_add_subnode(fdt, name);
++    qemu_fdt_setprop_string(fdt, name, "compatible", "ns16550a");
++    qemu_fdt_setprop_cells(fdt, name, "reg",
++        0x0, memmap[VIRT_UART1].base,
++        0x0, memmap[VIRT_UART1].size);
++    qemu_fdt_setprop_cell(fdt, name, "clock-frequency", 3686400);
++    qemu_fdt_setprop_cell(fdt, name, "interrupt-parent", plic_mmio_phandle);
++    qemu_fdt_setprop_cell(fdt, name, "interrupts", UART1_IRQ);
++
+     qemu_fdt_add_subnode(fdt, "/chosen");
+     qemu_fdt_setprop_string(fdt, "/chosen", "stdout-path", name);
+     g_free(name);
+@@ -712,6 +723,10 @@ static void virt_machine_init(MachineState *machine)
+         0, qdev_get_gpio_in(DEVICE(mmio_plic), UART0_IRQ), 399193,
+         serial_hd(0), DEVICE_LITTLE_ENDIAN);
+ 
++    serial_mm_init(system_memory, memmap[VIRT_UART1].base,
++        0, qdev_get_gpio_in(DEVICE(mmio_plic), UART1_IRQ), 399193,
++        serial_hd(1), DEVICE_LITTLE_ENDIAN);
++
+     sysbus_create_simple("goldfish_rtc", memmap[VIRT_RTC].base,
+         qdev_get_gpio_in(DEVICE(mmio_plic), RTC_IRQ));
+ 
+diff --git a/include/hw/riscv/virt.h b/include/hw/riscv/virt.h
+index 4816f68feb..4b7de130f8 100644
+--- a/include/hw/riscv/virt.h
++++ b/include/hw/riscv/virt.h
+@@ -53,6 +53,7 @@ enum {
+     VIRT_CLINT,
+     VIRT_PLIC,
+     VIRT_UART0,
++    VIRT_UART1,
+     VIRT_VIRTIO,
+     VIRT_FLASH,
+     VIRT_DRAM,
+@@ -68,6 +69,7 @@ enum {
+ enum {
+     UART0_IRQ = 10,
+     RTC_IRQ = 11,
++    UART1_IRQ = 12,
+     VIRTIO_IRQ = 1, /* 1 to 8 */
+     VIRTIO_COUNT = 8,
+     PCIE_IRQ = 0x20, /* 32 to 35 */
+-- 
+2.26.2
+

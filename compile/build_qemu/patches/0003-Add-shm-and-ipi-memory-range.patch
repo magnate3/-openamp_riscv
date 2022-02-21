@@ -1,0 +1,102 @@
+From 9e39150c14ba477734bf283869238cece9227506 Mon Sep 17 00:00:00 2001
+From: Bamvor Jian ZHANG <bamv2005@gmail.com>
+Date: Sat, 21 Nov 2020 13:05:44 +0800
+Subject: [PATCH 3/4] Add shm and ipi memory range
+
+Signed-off-by: Bamvor Jian ZHANG <bamv2005@gmail.com>
+---
+ hw/riscv/virt.c         | 34 ++++++++++++++++++++++++++++++++--
+ include/hw/riscv/virt.h |  6 +++++-
+ 2 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/hw/riscv/virt.c b/hw/riscv/virt.c
+index 25cea7aa67..2d9202d239 100644
+--- a/hw/riscv/virt.c
++++ b/hw/riscv/virt.c
+@@ -65,7 +65,10 @@ static const struct MemmapEntry {
+     [VIRT_FLASH] =       { 0x20000000,     0x4000000 },
+     [VIRT_PCIE_ECAM] =   { 0x30000000,    0x10000000 },
+     [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
+-    [VIRT_DRAM] =        { 0x80000000,           0x0 },
++    [VIRT_DRAM]  =       { 0x80000000,    0x20000000 },
++    [VIRT_SHM_IPI] =     { 0x90000000,    0x00080000 },
++    [VIRT_SHM]   =       { 0x90100000,    0x00100000 },
++    [VIRT_RPROC] =       { 0x90200000,    0x0fe00000 },
+ };
+ 
+ #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
+@@ -186,12 +189,13 @@ static void create_fdt(RISCVVirtState *s, const struct MemmapEntry *memmap,
+     uint64_t addr, size;
+     uint32_t *clint_cells, *plic_cells;
+     unsigned long clint_addr, plic_addr;
++    unsigned long vring_addr, shm_addr, rproc_addr;
+     uint32_t plic_phandle[MAX_NODES];
+     uint32_t cpu_phandle, intc_phandle, test_phandle;
+     uint32_t phandle = 1, plic_mmio_phandle = 1;
+     uint32_t plic_pcie_phandle = 1, plic_virtio_phandle = 1;
+     char *mem_name, *cpu_name, *core_name, *intc_name;
+-    char *name, *clint_name, *plic_name, *clust_name;
++    char *name, *clint_name, *plic_name, *clust_name, *shm_name, *rproc_name;
+     hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
+     hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
+ 
+@@ -288,6 +292,8 @@ static void create_fdt(RISCVVirtState *s, const struct MemmapEntry *memmap,
+ 
+         addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(mc, socket);
+         size = riscv_socket_mem_size(mc, socket);
++	printf("memory size: 0x%lx\n", size);
++	size = 256 * MiB;
+         mem_name = g_strdup_printf("/memory@%lx", (long)addr);
+         qemu_fdt_add_subnode(fdt, mem_name);
+         qemu_fdt_setprop_cells(fdt, mem_name, "reg",
+@@ -401,6 +407,30 @@ static void create_fdt(RISCVVirtState *s, const struct MemmapEntry *memmap,
+     test_phandle = qemu_fdt_get_phandle(fdt, name);
+     g_free(name);
+ 
++    shm_addr = memmap[VIRT_SHM].base;
++    shm_name = g_strdup_printf("/soc/shm@%lx", shm_addr);
++    qemu_fdt_add_subnode(fdt, shm_name);
++    qemu_fdt_setprop_string(fdt, shm_name, "compatible", "shm_uio");
++    qemu_fdt_setprop_cells(fdt, shm_name, "reg",
++        0x0, shm_addr, 0x0, memmap[VIRT_SHM].size);
++    g_free(shm_name);
++
++    shm_addr = memmap[VIRT_SHM_IPI].base;
++    shm_name = g_strdup_printf("/soc/shm@%lx", shm_addr);
++    qemu_fdt_add_subnode(fdt, shm_name);
++    qemu_fdt_setprop_string(fdt, shm_name, "compatible", "shm_uio");
++    qemu_fdt_setprop_cells(fdt, shm_name, "reg",
++        0x0, shm_addr, 0x0, memmap[VIRT_SHM_IPI].size);
++    g_free(shm_name);
++
++    rproc_addr = memmap[VIRT_RPROC].base;
++    rproc_name = g_strdup_printf("/soc/rproc@%lx", rproc_addr);
++    qemu_fdt_add_subnode(fdt, rproc_name);
++    qemu_fdt_setprop_string(fdt, rproc_name, "compatible", "rproc_uio");
++    qemu_fdt_setprop_cells(fdt, rproc_name, "reg",
++        0x0, rproc_addr, 0x0, memmap[VIRT_RPROC].size);
++    g_free(rproc_name);
++
+     name = g_strdup_printf("/soc/reboot");
+     qemu_fdt_add_subnode(fdt, name);
+     qemu_fdt_setprop_string(fdt, name, "compatible", "syscon-reboot");
+diff --git a/include/hw/riscv/virt.h b/include/hw/riscv/virt.h
+index b4ed9a32eb..4816f68feb 100644
+--- a/include/hw/riscv/virt.h
++++ b/include/hw/riscv/virt.h
+@@ -58,7 +58,11 @@ enum {
+     VIRT_DRAM,
+     VIRT_PCIE_MMIO,
+     VIRT_PCIE_PIO,
+-    VIRT_PCIE_ECAM
++    VIRT_PCIE_ECAM,
++    VIRT_RPROC,
++    VIRT_SHM,
++    VIRT_VRING,
++    VIRT_SHM_IPI
+ };
+ 
+ enum {
+-- 
+2.26.2
+

@@ -1,0 +1,29 @@
+From 3e0f18f92d04befbab4995938fadd4f9e8cda8a3 Mon Sep 17 00:00:00 2001
+From: Bamvor ZHANG <bamv2005@gmail.com>
+Date: Fri, 6 Aug 2021 19:11:02 +0800
+Subject: [PATCH 2/4] Revert "Force initrd to kernel + 256MiB - 1MiB for
+ loading rtt"
+
+This reverts commit 37f3a5ff632a5f2163051df4ba455b223d66c04f.
+---
+ hw/riscv/boot.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/hw/riscv/boot.c b/hw/riscv/boot.c
+index 1d7688a908..9b3fe3fb1e 100644
+--- a/hw/riscv/boot.c
++++ b/hw/riscv/boot.c
+@@ -172,9 +172,7 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
+      * halfway into RAM, and for boards with 256MB of RAM or more we put
+      * the initrd at 128MB.
+      */
+-//    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
+-    *start = kernel_entry + 256 * MiB;
+-    printf("initrd start address 0x%lx\n", *start);
++    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
+ 
+     size = load_ramdisk(filename, *start, mem_size - *start);
+     if (size == -1) {
+-- 
+2.26.2
+

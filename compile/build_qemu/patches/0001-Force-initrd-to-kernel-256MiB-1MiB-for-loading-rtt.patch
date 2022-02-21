@@ -1,0 +1,30 @@
+From 2218d60972d5bd7bac8dbedd457f3a5e353c5335 Mon Sep 17 00:00:00 2001
+From: Bamvor Jian ZHANG <bamv2005@gmail.com>
+Date: Sat, 21 Nov 2020 13:04:47 +0800
+Subject: [PATCH 1/4] Force initrd to kernel + 256MiB - 1MiB for loading rtt
+
+For debug libmetal before remoteproc is ready
+
+Signed-off-by: Bamvor Jian ZHANG <bamv2005@gmail.com>
+---
+ hw/riscv/boot.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/hw/riscv/boot.c b/hw/riscv/boot.c
+index 9b3fe3fb1e..1d7688a908 100644
+--- a/hw/riscv/boot.c
++++ b/hw/riscv/boot.c
+@@ -172,7 +172,9 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
+      * halfway into RAM, and for boards with 256MB of RAM or more we put
+      * the initrd at 128MB.
+      */
+-    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
++//    *start = kernel_entry + MIN(mem_size / 2, 128 * MiB);
++    *start = kernel_entry + 256 * MiB;
++    printf("initrd start address 0x%lx\n", *start);
+ 
+     size = load_ramdisk(filename, *start, mem_size - *start);
+     if (size == -1) {
+-- 
+2.26.2
+

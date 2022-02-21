@@ -1,0 +1,4 @@
+0001-Force-initrd-to-kernel-256MiB-1MiB-for-loading-rtt.patch
+0002-Revert-Force-initrd-to-kernel-256MiB-1MiB-for-loadin.patch
+0003-Add-shm-and-ipi-memory-range.patch
+0004-virt-rv64-add-uart1.patch
