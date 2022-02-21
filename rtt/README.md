@@ -4,9 +4,12 @@
 ```
  make PLATFORM=qemu/virt CROSS_COMPILE=riscv64-linux-gnu-
 ```
-## rtthread
+# rtthread compile
 
-
+## patches
+ ![image](https://github.com/magnate3/openamp_riscv/blob/main/pic/rt_patch.png)
+ 
+ 
 ```
 bsp/qemu-riscv-virt64
 export RTT_EXEC_PATH=/usr/bin
@@ -16,6 +19,7 @@ scons
 ```
 
 # run
+
 
 ```
 qemu-system-riscv64 -nographic -machine virt -m 256M -kernel rtthread.elf -bios fw_jump.elf 
